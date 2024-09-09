@@ -1,0 +1,89 @@
+name: Deploy Infra
+
+#on: workflow_dispatch
+on: workflow_dispatch
+
+env:
+  AWS_REGION: ap-south-1
+  IAM_ROLE: arn:aws:iam::160071257600:role/iac-lab-aashu-github-actions-role
+
+
+jobs:
+
+  # Can add extra jobs/steps to run any pre deploy tasks
+  terraform-fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      - name: Show version
+        run: terraform --version
+
+      - name: Run terraform fmt
+        run: terraform fmt -check=true -recursive
+        working-directory: ./session_5
+
+  tflint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Show version
+        run: tflint --version
+
+      - name: Run tflint
+        run: tflint --recursive
+        working-directory: ./session_5
+  # Can add extra jobs/steps to run any pre deploy tasks
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-session-name: GitHubActionsSession
+          role-to-assume: ${{ env.IAM_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get aws identity
+        run: |
+          aws sts get-caller-identity            
+
+    # Can add extra steps to run Terraform to create the AWS resources
+      - name: Terraform Setup
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.3
+
+      - name: Terraform init
+        run: terraform init
+        working-directory: ./session_5
+
+      - name: Terraform plan dev
+        run: terraform plan -var-file dev.tfvars -out=dev-plan.tfplan
+        working-directory: ./session_5
+
+      - name: Terraform apply dev
+        run: terraform apply --auto-approve dev-plan.tfplan
+        working-directory: ./session_5
+
+       

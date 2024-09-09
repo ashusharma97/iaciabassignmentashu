@@ -1,0 +1,44 @@
+name: Session 6 Destroy Infra
+
+on: workflow_dispatch
+
+env:
+  AWS_REGION: ap-south-1
+  IAM_ROLE: arn:aws:iam::160071257600:role/iac-lab-aashu-github-actions-role
+
+jobs:          
+
+  destroy:
+    name: Destroy
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@2ec54502e3e7b5d9591613811da6daded35caa19
+      with:
+        role-session-name: GitHubActionsSession
+        role-to-assume: ${{ env.IAM_ROLE }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Get aws identity
+      run: |
+        aws sts get-caller-identity       
+
+    - name: Terraform Setup
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.6.3        
+
+    - name: Terraform init
+      run: terraform init
+      working-directory: ./session_5
+
+    - name: Terraform destroy dev
+      run: terraform destroy -var-file dev.tfvars --auto-approve
+      working-directory: ./session_5
